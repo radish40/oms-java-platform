@@ -1,0 +1,51 @@
+# Build output
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# IDE
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+
+# Environment files
+.env
+.env.local
+.env.production
+*.env
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
+
+# Generated cache
+__pycache__/
+*.pyc
+
+# Local-only sanitization inputs
+.sensitive-denylist*
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# Test coverage
+*.exec
+jacoco/
+
+# Internal task-management workspace
+.trellis/

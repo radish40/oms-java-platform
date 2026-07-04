@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:oms_platform_test;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ${TEST_DB_PASSWORD:}
+    driver-class-name: org.h2.Driver
+  sql:
+    init:
+      mode: never
+
+oms:
+  security:
+    auth-secret: test-auth-secret
+    default-user: admin
+    default-password: admin-pass
+    default-display: Admin User
+    support-user: support
+    support-password: support-pass
+    support-display: Support User
