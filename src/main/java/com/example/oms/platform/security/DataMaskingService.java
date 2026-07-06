@@ -104,6 +104,9 @@ public class DataMaskingService {
 
     private String maskPhone(String phone) {
         String digits = phone.replaceAll("[^\\d]", "");
+        if (digits.length() == 13 && digits.startsWith("86")) {
+            digits = digits.substring(2);
+        }
         if (digits.length() <= 4) {
             return "***";
         }

@@ -22,6 +22,8 @@ envelopes compatible.
 | Judge reports | Judge report listing, summaries, and execution | `GET /diagnosis/judge-reports`, `GET /diagnosis/judge-reports/summary`, `POST /diagnosis/judge-reports/run`, `POST /diagnosis/judge-reports/batch-run` | Keeps report operations behind review permissions. |
 | Sessions | Conversation/session listing, detail, and deletion | `GET /sessions`, `GET /sessions/{session_id}`, `DELETE /sessions/{session_id}` | Preserves client-facing session response fields. |
 | Evaluation | Candidate review and export | `GET /eval/candidates`, `POST /eval/candidates/review`, `GET /eval/candidates/export` | Export remains NDJSON-compatible. |
+| Evaluation runtime | Case bank listing, detail, save, and export | `GET/POST /eval/case-bank`, `GET /eval/case-bank/{case_id}`, `GET /eval/case-bank/export` | Java exposes the runtime case-bank contract so clients do not need to call Python directly. |
+| Knowledge runtime | Knowledge entry listing, detail, and save | `GET/POST /knowledge/entries`, `GET /knowledge/entries/{entry_id}` | Frontend path proxies to runtime `/eval/knowledge-entry*` while preserving response fields. |
 | Model administration | Model config, binding, cache refresh, and test calls | `/admin/model-configs*`, `/admin/model-bindings*` | Admin-only configuration and runtime validation flow. |
 | Model options | Chat model option discovery | `GET /model-options/chat` | Reads available model options through the runtime boundary. |
 | Operations | Health and debug visibility | `GET /health`, `GET /ops/debug` | Health is public; debug data requires operations permission. |
@@ -35,6 +37,9 @@ envelopes compatible.
 - Return `403 FORBIDDEN` for missing permissions with the missing permission in
   `error.details.permission`.
 - Preserve NDJSON export behavior for evaluation candidates.
+- Preserve runtime contract links for case-bank and knowledge-entry operations.
+  Runtime JSON is passed through without dropping `snake_case` fields, including
+  `prompt_version` and `tool_schema_version`.
 
 ## Verification
 
@@ -45,4 +50,3 @@ command is:
 ```bash
 mvn -s maven-central-settings.xml verify
 ```
-

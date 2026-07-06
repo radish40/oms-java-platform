@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -57,11 +58,133 @@ class DiagnosisControllerTest {
     @Test
     void getRunForwardsPathAndAuthorization() throws Exception {
         when(runtimeRepository.getJson(eq("/diagnosis/runs/run-1"), any(), eq("Bearer dev-token")))
-                .thenReturn(json("{\"run\":{\"run_id\":\"run-1\"},\"steps\":[],\"summary\":{\"coverage\":[]}}"));
+                .thenReturn(json("""
+                        {
+                          "run": {
+                            "run_id": "run-1",
+                            "prompt_version": "pv-2026-07",
+                            "tool_schema_version": "tool-schema-3"
+                          },
+                          "steps": [],
+                          "summary": {"coverage": []}
+                        }
+                        """));
 
         mockMvc.perform(get("/diagnosis/runs/run-1").header("Authorization", "Bearer dev-token"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.run.run_id").value("run-1"));
+                .andExpect(jsonPath("$.run.run_id").value("run-1"))
+                .andExpect(jsonPath("$.run.prompt_version").value("pv-2026-07"))
+                .andExpect(jsonPath("$.run.tool_schema_version").value("tool-schema-3"));
+    }
+
+    @Test
+    void caseBankEndpointsProxyRuntimeAndPreservePayloadFields() throws Exception {
+        String token = loginToken("admin", "admin-pass");
+        when(runtimeRepository.getJson(eq("/eval/case-bank"), any(), eq("Bearer " + token)))
+                .thenReturn(json("{\"cases\":[{\"case_id\":\"case-1\",\"prompt_version\":\"pv-1\",\"tool_schema_version\":\"ts-1\"}]}"));
+        when(runtimeRepository.getJson(eq("/eval/case-bank/case-1"), any(), eq("Bearer " + token)))
+                .thenReturn(json("{\"case_id\":\"case-1\",\"prompt_version\":\"pv-1\",\"tool_schema_version\":\"ts-1\"}"));
+        when(runtimeRepository.getText(eq("/eval/case-bank/export"), any(), eq("Bearer " + token)))
+                .thenReturn("{\"case_id\":\"case-1\"}\n");
+        when(runtimeRepository.postJson(eq("/eval/case-bank"), any(), eq("Bearer " + token)))
+                .thenReturn(json("{\"case\":{\"case_id\":\"case-2\",\"prompt_version\":\"pv-2\",\"tool_schema_version\":\"ts-2\"}}"));
+
+        mockMvc.perform(get("/eval/case-bank?status=golden&scenario_type=delay&limit=5")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cases[0].prompt_version").value("pv-1"))
+                .andExpect(jsonPath("$.cases[0].tool_schema_version").value("ts-1"));
+
+        ArgumentCaptor<Map<String, String>> query = ArgumentCaptor.forClass(Map.class);
+        verify(runtimeRepository).getJson(eq("/eval/case-bank"), query.capture(), eq("Bearer " + token));
+        org.assertj.core.api.Assertions.assertThat(query.getValue())
+                .containsEntry("status", "golden")
+                .containsEntry("scenario_type", "delay")
+                .containsEntry("limit", "5");
+
+        mockMvc.perform(get("/eval/case-bank/case-1").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.prompt_version").value("pv-1"));
+
+        mockMvc.perform(get("/eval/case-bank/export?status=golden&limit=10")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("application/x-ndjson"))
+                .andExpect(content().string("{\"case_id\":\"case-1\"}\n"));
+
+        mockMvc.perform(post("/eval/case-bank")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType("application/json")
+                        .content("{\"case_id\":\"case-2\",\"prompt_version\":\"pv-2\",\"tool_schema_version\":\"ts-2\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.case.prompt_version").value("pv-2"))
+                .andExpect(jsonPath("$.case.tool_schema_version").value("ts-2"));
+
+        ArgumentCaptor<DiagnosisPayloadRequest> payload = ArgumentCaptor.forClass(DiagnosisPayloadRequest.class);
+        verify(runtimeRepository).postJson(eq("/eval/case-bank"), payload.capture(), eq("Bearer " + token));
+        org.assertj.core.api.Assertions.assertThat(payload.getValue().body())
+                .containsEntry("prompt_version", "pv-2")
+                .containsEntry("tool_schema_version", "ts-2");
+    }
+
+    @Test
+    void knowledgeEntriesProxyFrontendPathToRuntimeKnowledgeEntry() throws Exception {
+        String token = loginToken("admin", "admin-pass");
+        when(runtimeRepository.getJson(eq("/eval/knowledge-entry"), any(), eq("Bearer " + token)))
+                .thenReturn(json("{\"entries\":[{\"entry_id\":\"kb-1\",\"category\":\"shipping\",\"prompt_version\":\"pv-1\"}]}"));
+        when(runtimeRepository.getJson(eq("/eval/knowledge-entry/kb-1"), any(), eq("Bearer " + token)))
+                .thenReturn(json("{\"entry_id\":\"kb-1\",\"category\":\"shipping\",\"tool_schema_version\":\"ts-1\"}"));
+        when(runtimeRepository.postJson(eq("/eval/knowledge-entry"), any(), eq("Bearer " + token)))
+                .thenReturn(json("{\"entry\":{\"entry_id\":\"kb-2\",\"category\":\"shipping\",\"prompt_version\":\"pv-2\"}}"));
+
+        mockMvc.perform(get("/knowledge/entries?status=approved&category=shipping&limit=50")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entries[0].entry_id").value("kb-1"))
+                .andExpect(jsonPath("$.entries[0].prompt_version").value("pv-1"));
+
+        ArgumentCaptor<Map<String, String>> query = ArgumentCaptor.forClass(Map.class);
+        verify(runtimeRepository).getJson(eq("/eval/knowledge-entry"), query.capture(), eq("Bearer " + token));
+        org.assertj.core.api.Assertions.assertThat(query.getValue())
+                .containsEntry("status", "approved")
+                .containsEntry("category", "shipping")
+                .containsEntry("limit", "50");
+
+        mockMvc.perform(get("/knowledge/entries/kb-1").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tool_schema_version").value("ts-1"));
+
+        mockMvc.perform(post("/knowledge/entries")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType("application/json")
+                        .content("{\"entry_id\":\"kb-2\",\"category\":\"shipping\",\"prompt_version\":\"pv-2\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entry.entry_id").value("kb-2"))
+                .andExpect(jsonPath("$.entry.prompt_version").value("pv-2"));
+
+        ArgumentCaptor<DiagnosisPayloadRequest> payload = ArgumentCaptor.forClass(DiagnosisPayloadRequest.class);
+        verify(runtimeRepository).postJson(eq("/eval/knowledge-entry"), payload.capture(), eq("Bearer " + token));
+        org.assertj.core.api.Assertions.assertThat(payload.getValue().body())
+                .containsEntry("entry_id", "kb-2")
+                .containsEntry("prompt_version", "pv-2");
+    }
+
+    @Test
+    void caseBankAndKnowledgeEntriesRequireEvalReviewBeforeRuntimeCall() throws Exception {
+        String supportToken = loginToken("support", "support-pass");
+
+        mockMvc.perform(get("/eval/case-bank").header("Authorization", "Bearer " + supportToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.error.details.permission").value("eval:review"));
+
+        mockMvc.perform(get("/knowledge/entries").header("Authorization", "Bearer " + supportToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.error.details.permission").value("eval:review"));
+
+        verify(runtimeRepository, never()).getJson(eq("/eval/case-bank"), any(), any());
+        verify(runtimeRepository, never()).getJson(eq("/eval/knowledge-entry"), any(), any());
     }
 
     @Test

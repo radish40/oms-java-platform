@@ -27,6 +27,8 @@ class CrossLanguageContractTest {
             Map.entry("GET /sessions/{id}", List.of("session_id", "messages")),
             Map.entry("DELETE /sessions/{id}", List.of("deleted")),
             Map.entry("GET /eval/candidates", List.of("candidates")),
+            Map.entry("GET /eval/case-bank", List.of("cases")),
+            Map.entry("GET /knowledge/entries", List.of("entries")),
             Map.entry("GET /health", List.of("status", "components")),
             Map.entry("GET /disposal/workflows", List.of("workflows", "total")),
             Map.entry("GET /disposal/workflows/{id}", List.of("workflow_id", "workflow", "records", "action_drafts", "rollback_plans"))
@@ -41,6 +43,8 @@ class CrossLanguageContractTest {
             "/diagnosis/feedback",
             "/diagnosis/judge-reports",
             "/eval/candidates",
+            "/eval/case-bank",
+            "/knowledge/entries",
             "/model-options/chat",
             "/disposal/workflows",
             "/disposal/records",
