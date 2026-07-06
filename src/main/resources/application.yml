@@ -1,6 +1,8 @@
 spring:
   application:
     name: oms-platform
+  profiles:
+    default: ${SPRING_PROFILES_DEFAULT:dev}
 
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:oms_db}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false

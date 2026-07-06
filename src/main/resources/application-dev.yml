@@ -1,0 +1,49 @@
+# Local development profile.
+# Keep every value configurable through environment variables.
+
+spring:
+  datasource:
+    url: jdbc:mysql://${DEV_DB_HOST:${DB_HOST:localhost}}:${DEV_DB_PORT:${DB_PORT:3306}}/${DEV_DB_NAME:${DB_NAME:oms_db}}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: ${DEV_DB_USER:${DB_USER:oms_user}}
+    password: ${DEV_DB_PASSWORD:${DB_PASSWORD:}}
+    hikari:
+      maximum-pool-size: ${DEV_DB_MAX_POOL_SIZE:8}
+      minimum-idle: ${DEV_DB_MIN_IDLE:2}
+      connection-timeout: ${DEV_DB_CONNECTION_TIMEOUT_MS:30000}
+
+  data:
+    redis:
+      host: ${DEV_REDIS_HOST:${REDIS_HOST:localhost}}
+      port: ${DEV_REDIS_PORT:${REDIS_PORT:6379}}
+      database: ${DEV_REDIS_DB:${REDIS_DB:1}}
+      password: ${DEV_REDIS_PASSWORD:${REDIS_PASSWORD:}}
+      timeout: ${DEV_REDIS_TIMEOUT_MS:5000ms}
+      lettuce:
+        pool:
+          max-active: ${DEV_REDIS_POOL_MAX_ACTIVE:8}
+          max-idle: ${DEV_REDIS_POOL_MAX_IDLE:8}
+          min-idle: ${DEV_REDIS_POOL_MIN_IDLE:2}
+
+server:
+  port: ${DEV_PLATFORM_PORT:${PORT:18020}}
+
+logging:
+  level:
+    root: ${DEV_LOG_LEVEL_ROOT:INFO}
+    com.example.oms.platform: ${DEV_LOG_LEVEL_PLATFORM:DEBUG}
+
+oms:
+  security:
+    auth-secret: ${DEV_PLATFORM_AUTH_SECRET:${PLATFORM_AUTH_SECRET:}}
+    default-user: ${DEV_PLATFORM_DEFAULT_USER:${PLATFORM_DEFAULT_USER:admin}}
+    default-password: ${DEV_PLATFORM_DEFAULT_PASSWORD:${PLATFORM_DEFAULT_PASSWORD:}}
+    default-display: ${DEV_PLATFORM_DEFAULT_DISPLAY:${PLATFORM_DEFAULT_DISPLAY:Local Platform Admin}}
+    support-user: ${DEV_PLATFORM_SUPPORT_USER:${PLATFORM_SUPPORT_USER:support}}
+    support-password: ${DEV_PLATFORM_SUPPORT_PASSWORD:${PLATFORM_SUPPORT_PASSWORD:}}
+    support-display: ${DEV_PLATFORM_SUPPORT_DISPLAY:${PLATFORM_SUPPORT_DISPLAY:Local Platform Support}}
+  python-runtime:
+    base-url: ${DEV_MODEL_RUNTIME_URL:${MODEL_RUNTIME_URL:${PYTHON_RUNTIME_URL:http://localhost:18010}}}
+    timeout: ${DEV_MODEL_RUNTIME_TIMEOUT_MS:30000}
+
+knife4j:
+  enable: ${DEV_KNIFE4J_ENABLE:true}

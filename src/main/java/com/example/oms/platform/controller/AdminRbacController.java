@@ -5,6 +5,10 @@ import com.example.oms.platform.security.RequiresPermission;
 import com.example.oms.platform.service.AuthService;
 import com.example.oms.platform.service.RbacService;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import java.util.Map;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -20,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/admin")
+@Tag(name = "权限与用户管理")
 public class AdminRbacController {
     private final AuthService authService;
     private final RbacService rbacService;
@@ -31,18 +36,21 @@ public class AdminRbacController {
 
     @GetMapping("/rbac")
     @RequiresPermission("admin:rbac")
-    public Map<String, Object> rbac(@RequestParam(value = "audit_limit", defaultValue = "50") int auditLimit) {
+    @Operation(summary = "RBAC概览", description = "获取RBAC权限管理概览信息，包含审计日志")
+    public Map<String, Object> rbac(@Parameter(description = "审计日志数量限制，默认50") @RequestParam(value = "audit_limit", defaultValue = "50") int auditLimit) {
         return rbacService.overview(auditLimit);
     }
 
     @GetMapping("/roles")
     @RequiresPermission("admin:rbac")
+    @Operation(summary = "角色列表", description = "查询所有角色列表")
     public Map<String, Object> listRoles() {
         return Map.of("roles", rbacService.listRoles());
     }
 
     @PostMapping("/roles")
     @RequiresPermission("admin:rbac")
+    @Operation(summary = "保存角色", description = "创建或更新角色")
     public Map<String, Object> saveRole(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestBody SaveRoleRequest request) {
@@ -52,9 +60,10 @@ public class AdminRbacController {
 
     @DeleteMapping("/roles/{code}")
     @RequiresPermission("admin:rbac")
+    @Operation(summary = "删除角色", description = "根据角色编码删除角色")
     public Map<String, Object> deleteRole(
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @PathVariable String code) {
+            @Parameter(description = "角色编码") @PathVariable String code) {
         AuthUser actor = authService.currentUser(authorization);
         rbacService.deleteRole(code, actor.username());
         return Map.of("deleted", code);
@@ -62,11 +71,13 @@ public class AdminRbacController {
 
     @GetMapping("/permissions")
     @RequiresPermission("admin:rbac")
+    @Operation(summary = "权限列表", description = "查询所有权限列表")
     public Map<String, Object> listPermissions() {
         return Map.of("permissions", rbacService.listPermissions());
     }
 
     @GetMapping("/menus")
+    @Operation(summary = "菜单树", description = "获取当前用户的菜单树结构")
     public Map<String, Object> menus(
             @RequestHeader(value = "Authorization", required = false) String authorization) {
         AuthUser user = authService.currentUser(authorization);
@@ -75,6 +86,7 @@ public class AdminRbacController {
 
     @PostMapping("/users")
     @RequiresPermission("admin:rbac")
+    @Operation(summary = "创建用户", description = "创建新用户")
     public Map<String, Object> saveUser(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestBody SaveUserRequest request) {
@@ -91,9 +103,10 @@ public class AdminRbacController {
 
     @PutMapping("/users/{username}")
     @RequiresPermission("admin:rbac")
+    @Operation(summary = "更新用户", description = "更新指定用户的信息")
     public Map<String, Object> updateUser(
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @PathVariable String username,
+            @Parameter(description = "用户名") @PathVariable String username,
             @RequestBody UpdateUserRequest request) {
         AuthUser actor = authService.currentUser(authorization);
         Map<String, Object> user = rbacService.updateUser(
@@ -108,32 +121,33 @@ public class AdminRbacController {
 
     @DeleteMapping("/users/{username}")
     @RequiresPermission("admin:rbac")
+    @Operation(summary = "删除用户", description = "删除指定用户")
     public Map<String, Object> deleteUser(
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @PathVariable String username) {
+            @Parameter(description = "用户名") @PathVariable String username) {
         AuthUser actor = authService.currentUser(authorization);
         rbacService.deleteUser(username, actor.username());
         return Map.of("deleted", username);
     }
 
     public record SaveUserRequest(
-            String username,
-            @JsonProperty("display_name") String displayName,
-            String status,
-            String password,
-            List<String> roles) {
+            @Schema(description = "用户名") String username,
+            @Schema(description = "显示名称") @JsonProperty("display_name") String displayName,
+            @Schema(description = "状态") String status,
+            @Schema(description = "密码") String password,
+            @Schema(description = "角色列表") List<String> roles) {
     }
 
     public record UpdateUserRequest(
-            @JsonProperty("display_name") String displayName,
-            String status,
-            String password,
-            List<String> roles) {
+            @Schema(description = "显示名称") @JsonProperty("display_name") String displayName,
+            @Schema(description = "状态") String status,
+            @Schema(description = "密码") String password,
+            @Schema(description = "角色列表") List<String> roles) {
     }
 
     public record SaveRoleRequest(
-            String code,
-            String label,
-            List<String> permissions) {
+            @Schema(description = "角色编码") String code,
+            @Schema(description = "角色标签") String label,
+            @Schema(description = "权限列表") List<String> permissions) {
     }
 }
