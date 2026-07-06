@@ -47,5 +47,6 @@ __pycache__/
 *.exec
 jacoco/
 
-# Internal task-management workspace
-.trellis/
+# Trellis local runtime only; specs/tasks/workflow are tracked
+.trellis/.runtime/
+.trellis/.developer

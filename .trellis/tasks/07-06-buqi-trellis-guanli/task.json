@@ -1,0 +1,41 @@
+{
+  "id": "buqi-trellis-guanli",
+  "name": "buqi-trellis-guanli",
+  "title": "补齐 Java Platform Trellis 任务管理",
+  "description": "补齐 Java Platform 的 Trellis 工作流、规范索引和任务登记。",
+  "status": "in_progress",
+  "dev_type": "docs",
+  "scope": "java-platform",
+  "package": "backend",
+  "priority": "P1",
+  "creator": "Codex",
+  "assignee": "Codex",
+  "createdAt": "2026-07-06",
+  "completedAt": null,
+  "branch": "main",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    ".trellis/workflow.md",
+    ".trellis/spec/backend/index.md",
+    ".trellis/spec/guides/index.md"
+  ],
+  "notes": "补齐 Trellis 管理入口，供新会话直接读取任务、规范和验收规则。",
+  "acceptance": [
+    "Java 仓库提交完整 .trellis 工作流、规范、任务目录和工作区索引",
+    "忽略规则只排除 .trellis 本地 runtime，不排除规范和任务文件",
+    "Trellis 文档使用可读中文，无模板乱码",
+    "推送前通过 git status 和敏感词扫描"
+  ],
+  "validation_commands": [
+    "python ./.trellis/scripts/task.py list",
+    "python -c \"from pathlib import Path; bad=[chr(x) for x in (65533,37432,37714,28051,37836,37882,32545,20051)]; hits=[str(p) for p in Path('.trellis').rglob('*') if p.is_file() and any(b in p.read_text(encoding='utf-8', errors='ignore') for b in bad)]; print('OK' if not hits else '\\n'.join(hits)); raise SystemExit(1 if hits else 0)\"",
+    "git status --short --branch"
+  ],
+  "meta": {}
+}
