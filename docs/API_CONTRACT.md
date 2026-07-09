@@ -41,6 +41,7 @@ frontend and Python Runtime contracts.
 | Admin models | GET | `/admin/model-bindings` |
 | Admin models | POST | `/admin/model-bindings` |
 | Model options | GET | `/model-options/chat` |
+| Observability | GET | `/observability/dashboard` |
 | Runtime/Ops | GET | `/health` |
 | Runtime/Ops | GET | `/ops/debug` |
 
@@ -54,6 +55,11 @@ frontend and Python Runtime contracts.
 - Preserve NDJSON export behavior for evaluation candidates.
 - Runtime-backed proxy responses are pass-through JSON. Java must not drop
   snake_case fields such as `prompt_version` or `tool_schema_version`.
+- Diagnosis run detail responses may include `observability.trace` and
+  `observability.spans`. Java must pass these fields through unchanged so the
+  frontend and later telemetry exporters can use the same trace/span mapping.
+- `/observability/dashboard` is the Platform-facing read-only observability
+  route. It proxies Runtime `/observability/dashboard` and requires `menu:ops`.
 - `/eval/case-bank*` is the Java Platform contract link to the runtime case
   bank. `/knowledge/entries*` is the frontend-facing Java path and proxies to
   the runtime `/eval/knowledge-entry*` contract.
@@ -68,6 +74,14 @@ additional fields, but consumers should rely only on documented public fields.
 Feedback is currently `record_only`: the system stores, lists, and summarizes
 feedback and uses it as review input, but feedback cannot automatically change
 answers, knowledge, skills, order state, or customer communication.
+
+## Cross-Language Fixtures
+
+The Python Runtime owns the canonical fixture
+`../oms-python-agent/contracts/platform-runtime-diagnosis-run.v1.json` for
+`GET /diagnosis/runs/{run_id}`. Platform contract tests should load this fixture
+when the Java test tree is available again and verify that proxy responses keep
+`run`, `steps`, `summary`, `context`, and `observability` fields intact.
 
 ## Final Verification
 

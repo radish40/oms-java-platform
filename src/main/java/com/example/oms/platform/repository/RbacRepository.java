@@ -22,6 +22,8 @@ public class RbacRepository {
                     "menu:chat",
                     "menu:knowledge",
                     "menu:batch",
+                    "menu:anomaly",
+                    "menu:comparison",
                     "menu:ops",
                     "menu:evaluation",
                     "menu:admin",
@@ -29,13 +31,21 @@ public class RbacRepository {
                     "eval:review",
                     "admin:rbac",
                     "admin:models",
+                    "disposal:view",
+                    "disposal:handle",
                     "disposal:create",
                     "disposal:review",
                     "disposal:update",
                     "disposal:draft",
                     "disposal:rollback",
                     "disposal:approve")),
-            "support", new RoleDefinition("Support", List.of("menu:chat", "menu:knowledge", "menu:batch")));
+            "support", new RoleDefinition("Support", List.of(
+                    "menu:chat",
+                    "menu:knowledge",
+                    "menu:batch",
+                    "menu:anomaly",
+                    "menu:comparison",
+                    "disposal:view")));
 
     public static final Map<String, PermissionDefinition> PERMISSIONS = orderedPermissions();
 
@@ -366,6 +376,8 @@ public class RbacRepository {
         map.put("menu:chat", new PermissionDefinition("Chat", "Open the diagnosis chat workspace."));
         map.put("menu:knowledge", new PermissionDefinition("Knowledge", "Open the knowledge search workspace."));
         map.put("menu:batch", new PermissionDefinition("Batch", "Open batch diagnosis tools."));
+        map.put("menu:anomaly", new PermissionDefinition("Anomaly", "Open anomaly aggregation workbench."));
+        map.put("menu:comparison", new PermissionDefinition("Comparison", "Open diagnosis comparison workbench."));
         map.put("menu:ops", new PermissionDefinition("Ops", "Open operations and debug tools."));
         map.put("menu:evaluation", new PermissionDefinition("Evaluation", "Open evaluation review tools."));
         map.put("menu:admin", new PermissionDefinition("Admin", "Open administration tools."));
@@ -373,6 +385,8 @@ public class RbacRepository {
         map.put("eval:review", new PermissionDefinition("Evaluation Review", "Review feedback candidates and export cases."));
         map.put("admin:rbac", new PermissionDefinition("RBAC Admin", "Manage platform users, roles, and permissions."));
         map.put("admin:models", new PermissionDefinition("Model Admin", "Manage encrypted model provider configuration."));
+        map.put("disposal:view", new PermissionDefinition("Disposal View", "View disposal workflows and audit history."));
+        map.put("disposal:handle", new PermissionDefinition("Disposal Handle", "Create and confirm disposal actions after human review."));
         map.put("disposal:create", new PermissionDefinition("Disposal Create", "Create new disposal workflows for human-reviewed decisions."));
         map.put("disposal:review", new PermissionDefinition("Disposal Review", "Review and record human confirmation decisions on disposal workflows."));
         map.put("disposal:update", new PermissionDefinition("Disposal Update", "Update disposal workflow status."));
@@ -506,6 +520,8 @@ public class RbacRepository {
                 menuItem("chat", "Chat", "menu:chat", "/chat", "message-square", permissions),
                 menuItem("knowledge", "Knowledge", "menu:knowledge", "/knowledge", "book-open", permissions),
                 menuItem("batch", "Batch", "menu:batch", "/batch", "layers", permissions),
+                menuItem("anomaly", "Anomaly", "menu:anomaly", "/anomaly", "triangle-alert", permissions),
+                menuItem("comparison", "Comparison", "menu:comparison", "/comparison", "git-compare", permissions),
                 menuItem("ops", "Operations", "menu:ops", "/ops", "terminal", permissions),
                 menuItem("evaluation", "Evaluation", "menu:evaluation", "/evaluation", "bar-chart-2", permissions),
                 menuItem("admin", "Administration", "menu:admin", "/admin", "settings", permissions),

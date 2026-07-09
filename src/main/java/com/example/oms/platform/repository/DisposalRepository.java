@@ -3,6 +3,7 @@ package com.example.oms.platform.repository;
 import com.example.oms.platform.entity.DisposalActionDraft;
 import com.example.oms.platform.entity.DisposalAuditEntity;
 import com.example.oms.platform.entity.DisposalRecord;
+import com.example.oms.platform.entity.DisposalTicket;
 import com.example.oms.platform.entity.DisposalWorkflow;
 import com.example.oms.platform.entity.RollbackPlan;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -93,6 +94,18 @@ public class DisposalRepository {
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
                 """);
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS oms_disposal_tickets (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    workflow_id VARCHAR(64) NOT NULL,
+                    ticket_id VARCHAR(128) NOT NULL,
+                    ticket_source VARCHAR(64) NOT NULL DEFAULT 'placeholder',
+                    status VARCHAR(32) NOT NULL DEFAULT 'linked',
+                    title VARCHAR(512) NOT NULL DEFAULT '',
+                    created_by VARCHAR(128) NOT NULL DEFAULT '',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """);
     }
 
     @Transactional
@@ -112,6 +125,16 @@ public class DisposalRepository {
                        priority, summary, created_at, updated_at, resolved_at
                 FROM oms_disposal_workflows WHERE workflow_id = ?
                 """, this::workflowRow, workflowId);
+        return rows.stream().findFirst();
+    }
+
+    public Optional<DisposalWorkflow> findWorkflowByDiagnosisRunId(String diagnosisRunId) {
+        List<DisposalWorkflow> rows = jdbcTemplate.query("""
+                SELECT workflow_id, order_id, diagnosis_run_id, status, assignee,
+                       priority, summary, created_at, updated_at, resolved_at
+                FROM oms_disposal_workflows WHERE diagnosis_run_id = ?
+                ORDER BY created_at DESC LIMIT 1
+                """, this::workflowRow, diagnosisRunId);
         return rows.stream().findFirst();
     }
 
@@ -211,6 +234,15 @@ public class DisposalRepository {
                 """, this::actionDraftRow, workflowId);
     }
 
+    public Optional<DisposalActionDraft> findActionDraft(long id) {
+        List<DisposalActionDraft> rows = jdbcTemplate.query("""
+                SELECT id, workflow_id, action_type, description, risk_level,
+                       requires_approval, sort_order, created_at
+                FROM oms_disposal_action_drafts WHERE id = ?
+                """, this::actionDraftRow, id);
+        return rows.stream().findFirst();
+    }
+
     @Transactional
     public void deleteActionDraft(long id) {
         jdbcTemplate.update("DELETE FROM oms_disposal_action_drafts WHERE id = ?", id);
@@ -237,6 +269,28 @@ public class DisposalRepository {
     }
 
     @Transactional
+    public DisposalTicket createTicket(String workflowId, String ticketId, String ticketSource,
+                                       String status, String title, String createdBy) {
+        jdbcTemplate.update("""
+                INSERT INTO oms_disposal_tickets
+                    (workflow_id, ticket_id, ticket_source, status, title, created_by)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """, workflowId, ticketId, ticketSource, status, title, createdBy);
+        List<DisposalTicket> rows = jdbcTemplate.query("""
+                SELECT id, workflow_id, ticket_id, ticket_source, status, title, created_by, created_at
+                FROM oms_disposal_tickets WHERE workflow_id = ? ORDER BY id DESC LIMIT 1
+                """, this::ticketRow, workflowId);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    public List<DisposalTicket> findTickets(String workflowId) {
+        return jdbcTemplate.query("""
+                SELECT id, workflow_id, ticket_id, ticket_source, status, title, created_by, created_at
+                FROM oms_disposal_tickets WHERE workflow_id = ? ORDER BY id
+                """, this::ticketRow, workflowId);
+    }
+
+    @Transactional
     public RollbackPlan createRollbackPlan(String workflowId, String planName, String description,
                                             String stepsJson, String triggersJson) {
         jdbcTemplate.update("""
@@ -258,6 +312,15 @@ public class DisposalRepository {
                        triggers_json, status, created_at, updated_at
                 FROM oms_disposal_rollback_plans WHERE workflow_id = ? ORDER BY id
                 """, this::rollbackPlanRow, workflowId);
+    }
+
+    public Optional<RollbackPlan> findRollbackPlan(long id) {
+        List<RollbackPlan> rows = jdbcTemplate.query("""
+                SELECT id, workflow_id, plan_name, description, steps_json,
+                       triggers_json, status, created_at, updated_at
+                FROM oms_disposal_rollback_plans WHERE id = ?
+                """, this::rollbackPlanRow, id);
+        return rows.stream().findFirst();
     }
 
     @Transactional
@@ -330,6 +393,18 @@ public class DisposalRepository {
                 rs.getString("status"),
                 timestamp(rs, "created_at"),
                 timestamp(rs, "updated_at"));
+    }
+
+    private DisposalTicket ticketRow(ResultSet rs, int index) throws SQLException {
+        return new DisposalTicket(
+                rs.getLong("id"),
+                rs.getString("workflow_id"),
+                rs.getString("ticket_id"),
+                rs.getString("ticket_source"),
+                rs.getString("status"),
+                rs.getString("title"),
+                rs.getString("created_by"),
+                timestamp(rs, "created_at"));
     }
 
     private LocalDateTime timestamp(ResultSet rs, String column) throws SQLException {

@@ -3,8 +3,10 @@ package com.example.oms.platform.controller;
 import com.example.oms.platform.dto.request.DisposalActionDraftRequest;
 import com.example.oms.platform.dto.request.DisposalCreateRequest;
 import com.example.oms.platform.dto.request.DisposalRecordRequest;
+import com.example.oms.platform.dto.request.DisposalWorkbenchRequest;
 import com.example.oms.platform.dto.request.RollbackPlanRequest;
 import com.example.oms.platform.dto.response.DisposalDetailResponse;
+import com.example.oms.platform.dto.response.DisposalWorkbenchResponse;
 import com.example.oms.platform.dto.response.DisposalWorkflowResponse;
 import com.example.oms.platform.security.AuthUser;
 import com.example.oms.platform.security.RequiresPermission;
@@ -38,7 +40,7 @@ public class DisposalController {
     }
 
     @GetMapping("/workflows")
-    @RequiresPermission("disposal:review")
+    @RequiresPermission("disposal:view")
     @Operation(summary = "工作流列表", description = "分页查询处置工作流列表")
     public DisposalWorkflowResponse listWorkflows(
             @Parameter(description = "每页数量，默认50") @RequestParam(value = "limit", defaultValue = "50") int limit,
@@ -49,7 +51,7 @@ public class DisposalController {
     }
 
     @PostMapping("/workflows")
-    @RequiresPermission("disposal:create")
+    @RequiresPermission("disposal:handle")
     @Operation(summary = "创建工作流", description = "创建新的处置工作流")
     public DisposalWorkflowResponse createWorkflow(
             @RequestHeader(value = "Authorization", required = false) String authorization,
@@ -59,14 +61,14 @@ public class DisposalController {
     }
 
     @GetMapping("/workflows/{workflowId}")
-    @RequiresPermission("disposal:review")
+    @RequiresPermission("disposal:view")
     @Operation(summary = "工作流详情", description = "获取指定工作流的详细信息")
     public DisposalDetailResponse getWorkflow(@Parameter(description = "工作流ID") @PathVariable String workflowId) {
         return disposalService.getWorkflow(workflowId);
     }
 
     @PutMapping("/workflows/{workflowId}/status")
-    @RequiresPermission("disposal:update")
+    @RequiresPermission("disposal:handle")
     @Operation(summary = "更新工作流状态", description = "更新指定工作流的状态")
     public Map<String, Object> updateWorkflowStatus(
             @RequestHeader(value = "Authorization", required = false) String authorization,
@@ -79,7 +81,7 @@ public class DisposalController {
     }
 
     @PostMapping("/records")
-    @RequiresPermission("disposal:review")
+    @RequiresPermission("disposal:handle")
     @Operation(summary = "记录处置决策", description = "记录处置流程中的决策操作")
     public DisposalDetailResponse.DisposalRecordItem recordDecision(
             @RequestHeader(value = "Authorization", required = false) String authorization,
@@ -89,7 +91,7 @@ public class DisposalController {
     }
 
     @PostMapping("/action-drafts")
-    @RequiresPermission("disposal:draft")
+    @RequiresPermission("disposal:handle")
     @Operation(summary = "创建处置草稿", description = "创建处置行动草稿")
     public DisposalDetailResponse.ActionDraftItem createActionDraft(
             @RequestHeader(value = "Authorization", required = false) String authorization,
@@ -99,7 +101,7 @@ public class DisposalController {
     }
 
     @DeleteMapping("/action-drafts/{id}")
-    @RequiresPermission("disposal:draft")
+    @RequiresPermission("disposal:handle")
     @Operation(summary = "删除处置草稿", description = "删除指定的处置行动草稿")
     public Map<String, Object> deleteActionDraft(
             @RequestHeader(value = "Authorization", required = false) String authorization,
@@ -110,7 +112,7 @@ public class DisposalController {
     }
 
     @PostMapping("/rollback-plans")
-    @RequiresPermission("disposal:rollback")
+    @RequiresPermission("disposal:handle")
     @Operation(summary = "创建回滚计划", description = "创建处置回滚计划")
     public DisposalDetailResponse.RollbackPlanItem createRollbackPlan(
             @RequestHeader(value = "Authorization", required = false) String authorization,
@@ -120,7 +122,7 @@ public class DisposalController {
     }
 
     @PutMapping("/rollback-plans/{id}/approve")
-    @RequiresPermission("disposal:approve")
+    @RequiresPermission("disposal:handle")
     @Operation(summary = "审批回滚计划", description = "审批指定的回滚计划")
     public Map<String, Object> approveRollbackPlan(
             @RequestHeader(value = "Authorization", required = false) String authorization,
@@ -128,5 +130,22 @@ public class DisposalController {
         AuthUser user = authService.currentUser(authorization);
         disposalService.approveRollbackPlan(id, user.username());
         return Map.of("id", id, "status", "approved");
+    }
+
+    @GetMapping("/workbench/by-diagnosis/{runId}")
+    @RequiresPermission("disposal:view")
+    @Operation(summary = "Get diagnosis disposal workbench", description = "Get an existing disposal workbench for a diagnosis run")
+    public DisposalWorkbenchResponse getWorkbenchByDiagnosis(@PathVariable String runId) {
+        return disposalService.getWorkbenchByDiagnosisRun(runId);
+    }
+
+    @PostMapping("/workbench/from-diagnosis")
+    @RequiresPermission("disposal:handle")
+    @Operation(summary = "Create diagnosis disposal workbench", description = "Create or reuse a disposal workbench from a diagnosis run")
+    public DisposalWorkbenchResponse createWorkbenchFromDiagnosis(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody DisposalWorkbenchRequest request) {
+        AuthUser user = authService.currentUser(authorization);
+        return disposalService.createWorkbenchFromDiagnosis(request, user.username(), authorization);
     }
 }
