@@ -13,6 +13,7 @@ target/
 
 # Environment files
 .env
+.env.deploy
 .env.local
 .env.production
 *.env
@@ -20,7 +21,9 @@ target/
 
 # Logs
 logs/
+log/
 *.log
+.pid
 
 # OS
 .DS_Store
