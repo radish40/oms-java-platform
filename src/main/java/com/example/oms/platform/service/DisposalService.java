@@ -77,7 +77,7 @@ public class DisposalService {
 
     public DisposalDetailResponse getWorkflow(String workflowId) {
         DisposalWorkflow wf = repository.findWorkflow(workflowId)
-                .orElseThrow(() -> new BusinessException(404, "NOT_FOUND", "Workflow not found",
+                .orElseThrow(() -> new BusinessException(404, "NOT_FOUND", "处置流程不存在",
                         payload("workflow_id", workflowId)));
         List<DisposalRecord> records = repository.findRecords(workflowId);
         List<DisposalActionDraft> drafts = repository.findActionDrafts(workflowId);
@@ -96,10 +96,10 @@ public class DisposalService {
 
     public DisposalWorkbenchResponse getWorkbenchByDiagnosisRun(String runId) {
         if (runId == null || runId.isBlank()) {
-            throw new BusinessException(400, "INVALID_RUN_ID", "run_id is required");
+            throw new BusinessException(400, "INVALID_RUN_ID", "缺少诊断记录ID");
         }
         DisposalWorkflow wf = repository.findWorkflowByDiagnosisRunId(runId)
-                .orElseThrow(() -> new BusinessException(404, "NOT_FOUND", "Disposal workflow not found",
+                .orElseThrow(() -> new BusinessException(404, "NOT_FOUND", "该诊断尚未生成处置流程",
                         Map.of("run_id", runId)));
         DisposalDetailResponse detail = getWorkflow(wf.workflowId());
         return new DisposalWorkbenchResponse(
@@ -116,7 +116,7 @@ public class DisposalService {
 
     public DisposalWorkbenchResponse createWorkbenchFromDiagnosis(DisposalWorkbenchRequest request, String actor, String authorization) {
         if (request == null || request.runId() == null || request.runId().isBlank()) {
-            throw new BusinessException(400, "INVALID_RUN_ID", "run_id is required");
+            throw new BusinessException(400, "INVALID_RUN_ID", "缺少诊断记录ID");
         }
         JsonNode diagnosis = diagnosisDetail(request, authorization);
         JsonNode summary = diagnosis == null ? objectMapper.createObjectNode() : diagnosis.path("summary");
@@ -124,9 +124,9 @@ public class DisposalService {
                 request.orderId(),
                 textAt(summary, "/subject/oms_order_id"),
                 textAt(summary, "/subject/platform_order_id"));
-        String rootCause = firstNonBlank(textAt(summary, "/root_cause"), "Diagnosis run " + request.runId());
+        String rootCause = firstNonBlank(textAt(summary, "/root_cause"), "诊断记录 " + request.runId());
         String priority = priority(summary);
-        String workflowSummary = "Diagnosis " + request.runId() + ": " + rootCause;
+        String workflowSummary = "诊断 " + request.runId() + "：" + rootCause;
 
         DisposalWorkflow wf = repository.findWorkflowByDiagnosisRunId(request.runId()).orElse(null);
         boolean created = false;
@@ -162,10 +162,10 @@ public class DisposalService {
             List<Map<String, Object>> rollback = rollbackGuidance(summary);
             repository.createRollbackPlan(
                     wf.workflowId(),
-                    "Recovery plan for " + request.runId(),
-                    "Restore the workflow to a reviewable state if a disposal step fails.",
+                    "处置回滚预案 " + request.runId(),
+                    "如果处置步骤失败，将流程恢复到可复核状态。",
                     serialize(rollback),
-                    serialize(List.of(Map.of("when", "selected action fails or business owner rejects the result"))));
+                    serialize(List.of(Map.of("when", "所选动作失败，或业务负责人驳回处理结果"))));
             repository.recordAuditEvent(wf.workflowId(), "disposal.rollback.generate", actor, "disposal:handle", "{}");
         }
 
@@ -231,7 +231,7 @@ public class DisposalService {
         String triggersJson = serialize(request.triggers());
         RollbackPlan plan = repository.createRollbackPlan(
                 workflowId,
-                request.planName() == null ? "Untitled Plan" : request.planName(),
+                request.planName() == null ? "未命名预案" : request.planName(),
                 request.description() == null ? "" : request.description(),
                 stepsJson,
                 triggersJson);
@@ -275,7 +275,7 @@ public class DisposalService {
                 ticketId,
                 request.ticketId() == null || request.ticketId().isBlank() ? "placeholder" : "external",
                 "linked",
-                "Disposal follow-up for " + firstNonBlank(wf.orderId(), wf.diagnosisRunId()),
+                "处置跟进：" + firstNonBlank(wf.orderId(), wf.diagnosisRunId()),
                 actor);
         repository.recordAuditEvent(wf.workflowId(), "disposal.ticket.link", actor, "disposal:handle",
                 serialize(Map.of("ticket_id", ticketId, "ticket_source", ticket.ticketSource())));
@@ -288,33 +288,33 @@ public class DisposalService {
         String confidence = summary == null ? "" : textAt(summary, "/confidence/label");
         String subject = summary == null ? "" : firstNonBlank(textAt(summary, "/subject/oms_order_id"), textAt(summary, "/subject/platform_order_id"));
         StringBuilder note = new StringBuilder();
-        note.append("Diagnosis conclusion");
+        note.append("诊断结论");
         if (!subject.isBlank()) {
-            note.append(" for ").append(subject);
+            note.append("（").append(subject).append("）");
         }
-        note.append(": ").append(firstNonBlank(rootCause, fallback, "No root cause summary."));
+        note.append("：").append(firstNonBlank(rootCause, fallback, "暂无根因摘要。"));
         if (!category.isBlank()) {
-            note.append(" Category: ").append(category).append(".");
+            note.append(" 分类：").append(categoryLabel(category)).append("。");
         }
         if (!confidence.isBlank()) {
-            note.append(" Confidence: ").append(confidence).append(".");
+            note.append(" 置信度：").append(confidenceLabel(confidence)).append("。");
         }
-        note.append(" Human confirmation is required before any business operation is executed.");
+        note.append(" 执行任何业务操作前必须先完成人工确认。");
         return note.toString();
     }
 
     private List<Map<String, Object>> suggestedActions(JsonNode summary) {
         List<Map<String, Object>> actions = new ArrayList<>();
-        actions.add(action("manual_verify_evidence", "Review the diagnosis evidence and confirm the affected order/customer context.", "low", true));
+        actions.add(action("manual_verify_evidence", "复核诊断证据，确认受影响的订单和客户上下文。", "low", true));
         if (summary != null && (summary.path("missing_data").size() > 0 || summary.path("next_questions").size() > 0
                 || summary.path("next_questions_structured").size() > 0)) {
-            actions.add(action("collect_missing_information", "Collect missing data or answer the pending clarification questions before disposal.", "medium", true));
+            actions.add(action("collect_missing_information", "处置前补齐缺失数据，或回答待澄清问题。", "medium", true));
         }
         if (summary != null && !textAt(summary, "/root_cause").isBlank()) {
-            actions.add(action("contact_business_owner", "Send the handling note draft to the responsible business owner for confirmation.", "medium", true));
+            actions.add(action("contact_business_owner", "将处理说明草稿发送给相关业务负责人确认。", "medium", true));
         }
         if (summary != null && summary.path("tool_errors").size() > 0) {
-            actions.add(action("rerun_diagnosis_after_tool_recovery", "Recover failed tools and rerun diagnosis before closing the workflow.", "medium", true));
+            actions.add(action("rerun_diagnosis_after_tool_recovery", "先恢复失败工具并重新诊断，再关闭处置流程。", "medium", true));
         }
         return actions;
     }
@@ -330,11 +330,11 @@ public class DisposalService {
 
     private List<Map<String, Object>> rollbackGuidance(JsonNode summary) {
         List<Map<String, Object>> steps = new ArrayList<>();
-        steps.add(Map.of("step", "pause_selected_action", "description", "Stop the selected manual action and keep the workflow in review."));
-        steps.add(Map.of("step", "restore_workflow_state", "description", "Move the workflow back to pending and keep all confirmation records."));
-        steps.add(Map.of("step", "notify_owner", "description", "Notify the confirmer and business owner with the failure reason."));
+        steps.add(Map.of("step", "pause_selected_action", "description", "停止当前人工动作，并保持流程在复核状态。"));
+        steps.add(Map.of("step", "restore_workflow_state", "description", "将流程恢复为待处理，并保留所有确认记录。"));
+        steps.add(Map.of("step", "notify_owner", "description", "将失败原因通知确认人和业务负责人。"));
         if (summary != null && summary.path("tool_errors").size() > 0) {
-            steps.add(Map.of("step", "repair_diagnosis_inputs", "description", "Resolve tool errors, rerun diagnosis, then regenerate suggestions."));
+            steps.add(Map.of("step", "repair_diagnosis_inputs", "description", "修复工具错误，重新诊断后再生成处置建议。"));
         }
         return steps;
     }
@@ -357,14 +357,37 @@ public class DisposalService {
     private void validateForbiddenActionType(String actionType) {
         if (FORBIDDEN_ACTION_TYPES.contains(actionType)) {
             throw new BusinessException(403, "FORBIDDEN_ACTION",
-                    "Automatic changes to order status, cancellations, address, " +
-                    "or customer notifications are prohibited. Only human-reviewed decisions may be recorded.");
+                    "禁止自动修改订单状态、取消订单、修改地址或通知客户。这里只允许记录经过人工复核的处置决定。");
         }
+    }
+
+    private String confidenceLabel(String confidence) {
+        return switch (confidence) {
+            case "high" -> "高";
+            case "medium" -> "中";
+            case "low" -> "低";
+            default -> confidence;
+        };
+    }
+
+    private String categoryLabel(String category) {
+        return switch (category) {
+            case "external_push_failed" -> "外部推送失败";
+            case "not_entered_oms" -> "未进入 OMS";
+            case "sourcing_failed" -> "寻源失败";
+            case "warehouse_or_logistics_pending" -> "仓库或物流待处理";
+            case "after_sales_or_fulfilled" -> "已履约或售后";
+            case "source_code_hint_only" -> "仅源码线索";
+            case "official_web_no_signal" -> "官网无信号";
+            case "mapping_missing" -> "映射缺失";
+            case "unknown" -> "未知";
+            default -> category;
+        };
     }
 
     private void ensureWorkflowExists(String workflowId) {
         if (!repository.findWorkflow(workflowId).isPresent()) {
-            throw new BusinessException(404, "NOT_FOUND", "Workflow not found",
+            throw new BusinessException(404, "NOT_FOUND", "处置流程不存在",
                     payload("workflow_id", workflowId));
         }
     }
