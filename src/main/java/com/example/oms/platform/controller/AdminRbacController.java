@@ -76,6 +76,20 @@ public class AdminRbacController {
         return Map.of("permissions", rbacService.listPermissions());
     }
 
+    @PostMapping("/permissions")
+    @RequiresPermission("admin:rbac")
+    @Operation(summary = "保存权限", description = "创建或更新菜单权限、功能权限")
+    public Map<String, Object> savePermission(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody SavePermissionRequest request) {
+        AuthUser actor = authService.currentUser(authorization);
+        return Map.of("permission", rbacService.savePermission(
+                request.code(),
+                request.label(),
+                request.description(),
+                actor.username()));
+    }
+
     @GetMapping("/menus")
     @Operation(summary = "菜单树", description = "获取当前用户的菜单树结构")
     public Map<String, Object> menus(
@@ -149,5 +163,11 @@ public class AdminRbacController {
             @Schema(description = "角色编码") String code,
             @Schema(description = "角色标签") String label,
             @Schema(description = "权限列表") List<String> permissions) {
+    }
+
+    public record SavePermissionRequest(
+            @Schema(description = "权限编码") String code,
+            @Schema(description = "权限名称") String label,
+            @Schema(description = "权限说明") String description) {
     }
 }

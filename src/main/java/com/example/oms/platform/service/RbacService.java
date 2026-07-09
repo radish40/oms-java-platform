@@ -61,6 +61,10 @@ public class RbacService {
         return repository.listPermissions();
     }
 
+    public Map<String, Object> savePermission(String code, String label, String description, String actor) {
+        return repository.savePermission(code, label, description, actor);
+    }
+
     public List<Map<String, Object>> buildMenuTree(List<String> permissions) {
         return repository.buildMenuTree(permissions);
     }

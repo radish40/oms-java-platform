@@ -482,7 +482,14 @@ public class RbacRepository {
         }
         if (permissions != null) {
             jdbcTemplate.update("DELETE FROM oms_ai_role_permissions WHERE role_code = ?", code);
-            for (String perm : permissions) {
+            for (String perm : permissions.stream().distinct().toList()) {
+                Integer permissionExists = jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM oms_ai_permissions WHERE code = ?",
+                        Integer.class,
+                        perm);
+                if (permissionExists == null || permissionExists == 0) {
+                    throw new IllegalArgumentException("Unknown permission: " + perm);
+                }
                 jdbcTemplate.update("INSERT INTO oms_ai_role_permissions (role_code, permission_code) VALUES (?, ?)", code, perm);
             }
         }
@@ -513,6 +520,27 @@ public class RbacRepository {
                 "label", rs.getString("label"),
                 "description", rs.getString("description"),
                 "created_at", text(rs.getObject("created_at"))));
+    }
+
+    @Transactional
+    public Map<String, Object> savePermission(String code, String label, String description, String actor) {
+        if (code == null || code.isBlank()) {
+            throw new IllegalArgumentException("Permission code is required");
+        }
+        String normalizedCode = code.trim();
+        if (!normalizedCode.matches("[a-z][a-z0-9_.:-]*")) {
+            throw new IllegalArgumentException("Permission code can only contain lowercase letters, numbers, colon, dot, underscore, or hyphen");
+        }
+        String normalizedLabel = label == null || label.isBlank() ? normalizedCode : label.trim();
+        String normalizedDescription = description == null ? "" : description.trim();
+        upsert("oms_ai_permissions", "code", normalizedCode, Map.of(
+                "label", normalizedLabel,
+                "description", normalizedDescription));
+        recordAuditEvent("admin.permission.save", actor, "admin:rbac", "auth_permission", normalizedCode, "{}");
+        return listPermissions().stream()
+                .filter(permission -> normalizedCode.equals(permission.get("code")))
+                .findFirst()
+                .orElse(Map.of());
     }
 
     public List<Map<String, Object>> buildMenuTree(List<String> permissions) {
