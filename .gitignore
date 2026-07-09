@@ -16,6 +16,7 @@ target/
 .env.local
 .env.production
 *.env
+!.env.deploy.example
 
 # Logs
 logs/
